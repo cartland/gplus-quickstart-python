@@ -37,15 +37,31 @@
 </head>
 <body>
   <div id="gConnect">
-    <button class="g-signin"
-        data-scope="https://www.googleapis.com/auth/plus.login"
-        data-requestvisibleactions="http://schemas.google.com/AddActivity"
-        data-clientId="{{ CLIENT_ID }}"
-        data-accesstype="offline"
-        data-callback="onSignInCallback"
-        data-theme="dark"
-        data-cookiepolicy="single_host_origin">
-    </button>
+    <div id="approval-prompt-auto">
+      <button class="g-signin"
+          data-scope="https://www.googleapis.com/auth/plus.login"
+          data-requestvisibleactions="http://schemas.google.com/AddActivity"
+          data-clientId="{{ CLIENT_ID }}"
+          data-accesstype="offline"
+          data-callback="onSignInCallback"
+          data-theme="dark"
+          data-approvalprompt="auto"
+          data-cookiepolicy="single_host_origin">
+      </button>
+    </div>
+    <div id="approval-prompt-force" style="display: none;">
+      <button class="g-signin"
+          data-scope="https://www.googleapis.com/auth/plus.login"
+          data-requestvisibleactions="http://schemas.google.com/AddActivity"
+          data-clientId="{{ CLIENT_ID }}"
+          data-accesstype="offline"
+          data-callback="onSignInCallback"
+          data-theme="dark"
+          data-approvalprompt="force"
+          data-cookiepolicy="single_host_origin">
+      </button><br />
+      Returning user <div id="person-info"></div> needs refresh token.
+    </div>
   </div>
   <div id="authOps" style="display:none">
     <h2>User is now signed in to the app using Google+</h2>
@@ -122,9 +138,10 @@ var helper = (function() {
             $('#profile').append(
                 $('<p><img src=\"' + profile.cover.coverPhoto.url + '\"></p>'));
           }
+          $('#person-info').empty();
+          $('#person-info').append(profile.displayName);
         });
       $('#authOps').show('slow');
-      $('#gConnect').hide();
     },
     /**
      * Calls the server endpoint to disconnect the app for the user.
@@ -163,7 +180,13 @@ var helper = (function() {
         contentType: 'application/octet-stream; charset=utf-8',
         success: function(result) {
           console.log(result);
-          helper.people();
+          if (result['needs_refresh_token']) {
+            // Show sign-in button with approvalprompt=force
+            helper.needForce(true);
+          } else {
+            helper.needForce(false);
+            helper.people();
+          }
         },
         processData: false,
         data: this.authResult.code
@@ -196,6 +219,23 @@ var helper = (function() {
       for (var personIndex in people.items) {
         person = people.items[personIndex];
         $('#visiblePeople').append('<img src="' + person.image.url + '">');
+      }
+    },
+    /**
+     * Picks between approvalprompt="force" sign-in button
+     * and approvalprompt="auto". Note that neither button
+     * will appear unless $('gConnect') is visible.
+     *
+     * @param {Boolean} needForce Determines which sign-in button to show
+     */
+    needForce: function(needForce) {
+      console.log("needForce: " + needForce);
+      if (needForce) {
+        $('#approval-prompt-force').show();
+        $('#approval-prompt-auto').hide();
+      } else {
+        $('#approval-prompt-force').hide();
+        $('#approval-prompt-auto').show();
       }
     },
   };

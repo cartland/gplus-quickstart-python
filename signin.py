@@ -85,7 +85,8 @@ def connect():
   store the token in the session."""
   # Ensure that the request is not a forgery and that the user sending
   # this connect request is the expected user.
-  if request.args.get('state', '') != session['state']:
+  if session.get('state', None) is None \
+        or request.args.get('state', '') != session.get('state'):
     response = make_response(json.dumps('Invalid state parameter.'), 401)
     response.headers['Content-Type'] = 'application/json'
     return response
@@ -120,15 +121,24 @@ def connect():
 
   stored_credentials = session.get('credentials')
   stored_gplus_id = session.get('gplus_id')
-  if stored_credentials is not None and gplus_id == stored_gplus_id:
-    response = make_response(json.dumps('Current user is already connected.'),
-                             200)
+  if stored_credentials is not None \
+        and stored_credentials.refresh_token \
+        and gplus_id == stored_gplus_id:
+    response_data = {
+      'needs_refresh_token': False,
+      'message': 'Current user is already connected.',
+    }
+    response = make_response(json.dumps(response_data, 200))
     response.headers['Content-Type'] = 'application/json'
     return response
   # Store the access token in the session for later use.
   session['credentials'] = credentials
   session['gplus_id'] = gplus_id
-  response = make_response(json.dumps('Successfully connected user.', 200))
+  response_data = {
+    'needs_refresh_token': False if credentials.refresh_token else True,
+    'message': 'Successfully connected user.',
+  }
+  response = make_response(json.dumps(response_data, 200))
   response.headers['Content-Type'] = 'application/json'
   return response
 
